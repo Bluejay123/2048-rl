@@ -20,7 +20,7 @@ def average_score(strategy):
   scores = []
   results = []
   for _ in range(100):
-    score, _, game_over = play.play(strategy, verbose=False, allow_unavailable_action=False)
+    score, _, game_over = play.play(strategy, verbose=False, allow_unavailable_action=False, output_game_result=True)
     scores.append(score)
     results.append(0 if game_over == True else 1)
 
@@ -64,7 +64,7 @@ def play_single_game(train_dir):
   """Play a single game using the latest model snapshot in train_dir."""
 
   s, _, _ = play.play(make_greedy_strategy(train_dir, True), verbose=True,
-                   allow_unavailable_action=False)
+                   allow_unavailable_action=False, output_game_result=True)
   # s, _, _ = play.play(random_strategy,
   #                 allow_unavailable_action=False)
   print(s)

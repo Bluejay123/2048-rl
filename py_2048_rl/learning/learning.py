@@ -18,8 +18,8 @@ from py_2048_rl.learning.replay_memory import ReplayMemory
 
 
 STATE_NORMALIZE_FACTOR = 1.0 / 15.0
-MAX_NUM_STEPS = 1e7
-# MAX_NUM_STEPS = 10000
+#MAX_NUM_STEPS = 1e7
+MAX_NUM_STEPS = 100000
 
 
 def make_run_inference(session, model):
@@ -95,7 +95,7 @@ def run_training(train_dir):
                 model.targets_placeholder: targets,
                 model.actions_placeholder: actions,})
 
-        if global_step % 10000 == 0 and global_step != 0:
+        if global_step % 100000 == 0 and global_step != 0:
           saver.save(session, train_full_path + "/checkpoint", global_step=global_step)
           loss = write_summaries(session, batcher, model, test_experiences,
                                  summary_writer)

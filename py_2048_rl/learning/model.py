@@ -25,7 +25,8 @@ LR_DECAY_PER_100K = 0.98
 class FeedModel(object):
   """Class to construct and collect all relevant tensors of the model."""
 
-  def __init__(self):
+  def __init__(self, lr):
+    self.lr = lr
     self.state_batch_placeholder = tf.placeholder(
         tf.float32, shape=(None, NUM_TILES))
     self.targets_placeholder = tf.placeholder(tf.float32, shape=(None,))
@@ -40,7 +41,7 @@ class FeedModel(object):
     self.loss = build_loss(self.q_values, self.targets_placeholder,
                      self.actions_placeholder)
     self.train_op, self.global_step, self.learning_rate = (
-        build_train_op(self.loss))
+        build_train_op(self.loss, self.lr))
 
     tf.summary.scalar("Average Target",
                       tf.reduce_mean(self.targets_placeholder))
@@ -145,7 +146,7 @@ def build_loss(q_values, targets, actions):
   return tf.reduce_mean(tf.pow(relevant_q_values - targets, 2))
 
 
-def build_train_op(loss):
+def build_train_op(loss, init_learning_rate):
   """Sets up the training Ops.
 
   Args:
@@ -156,7 +157,7 @@ def build_train_op(loss):
   """
   global_step = tf.Variable(0, name='global_step', trainable=False)
   learning_rate = tf.train.exponential_decay(
-      INIT_LEARNING_RATE, global_step, 100000, LR_DECAY_PER_100K)
+      init_learning_rate, global_step, 100000, LR_DECAY_PER_100K)
 
   optimizer = OPTIMIZER_CLASS(learning_rate)
   train_op = optimizer.minimize(loss, global_step=global_step)
