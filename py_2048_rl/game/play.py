@@ -42,7 +42,7 @@ class Experience(object):
     return self.__str__()
 
 
-def play(strategy, verbose=False, allow_unavailable_action=True):
+def play(strategy, verbose=False, allow_unavailable_action=True, output_game_result=False):
   """Plays a single game, using a provided strategy.
 
   Args:
@@ -94,8 +94,10 @@ def play(strategy, verbose=False, allow_unavailable_action=True):
     print("Score:", game.score())
     game.print_state()
     print("Game over.")
-
-  return game.score(), experiences
+  if output_game_result:
+    return game.score(), experiences, game_over
+  else:
+    return game.score(), experiences
 
 
 def random_strategy(_, actions):

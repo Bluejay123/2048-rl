@@ -35,14 +35,15 @@ class ExperienceBatcher(object):
     self.state_normalize_factor = state_normalize_factor
 
 
-  def get_batches_stepwise(self):
+
+  def get_batches_stepwise(self, memory):
     """Wraps get_batches(), keeping the current predictions constant for
     BATCHES_KEEP_CONSTANT steps.
     """
 
     cache = []
 
-    for batches in self.get_batches():
+    for batches in self.get_batches(memory):
       cache.append(batches)
 
       if len(cache) >= BATCHES_KEEP_CONSTANT:
@@ -51,19 +52,19 @@ class ExperienceBatcher(object):
         cache = []
 
 
-  def get_batches(self):
+  def get_batches(self, memory):
     """Yields randomized batches epsilon-greedy games.
 
     Maintains a replay memory at full capacity.
     """
 
-    print("Initializing memory...")
-    memory = ReplayMemory()
-    while not memory.is_full():
-      for experience in self.experience_collector.collect(play.random_strategy):
-        memory.add(experience)
+    # print("Initializing memory...")
+    # memory = ReplayMemory()
+    # while not memory.is_full():
+    #   for experience in self.experience_collector.collect(play.random_strategy):
+    #     memory.add(experience)
 
-    memory.print_stats()
+    # memory.print_stats()
 
     for i in itertools.count():
       if i < START_DECREASE_EPSILON_GAMES:

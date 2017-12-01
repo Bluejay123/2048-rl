@@ -14,9 +14,12 @@ from py_2048_rl.game import play
 from py_2048_rl.learning.experience_batcher import ExperienceBatcher
 from py_2048_rl.learning.experience_collector import ExperienceCollector
 from py_2048_rl.learning.model import FeedModel
+from py_2048_rl.learning.replay_memory import ReplayMemory
 
 
 STATE_NORMALIZE_FACTOR = 1.0 / 15.0
+MAX_NUM_STEPS = 1e7
+# MAX_NUM_STEPS = 10000
 
 
 def make_run_inference(session, model):
@@ -44,46 +47,62 @@ def make_get_q_values(session, model):
 
 def run_training(train_dir):
   """Run training"""
+  experience_collector = ExperienceCollector()
+  print("Initializing memory...")
+  memory = ReplayMemory()
+  while not memory.is_full():
+    for experience in experience_collector.collect(play.random_strategy):
+      memory.add(experience)
 
-  resume = os.path.exists(train_dir)
-
+  memory.print_stats()
+  
+  # resume = os.path.exists(train_dir)
+  learning_rates = [1e-5, 1e-6, 1e-7, 1e-3, 1e-8, 1e-1, 1e-2]
   with tf.Graph().as_default():
-    model = FeedModel()
-    saver = tf.train.Saver()
-    session = tf.Session()
-    summary_writer = tf.train.SummaryWriter(train_dir,
-                                            graph_def=session.graph_def,
-                                            flush_secs=10)
+    for lr in learning_rates:
+      train_full_path = train_dir+'_'+str(lr)
+      resume = os.path.exists(train_full_path)
+    
+      model = FeedModel(lr)
+      saver = tf.train.Saver()
+      session = tf.Session()
 
-    if resume:
-      print("Resuming: ", train_dir)
-      saver.restore(session, tf.train.latest_checkpoint(train_dir))
-    else:
-      print("Starting new training: ", train_dir)
-      session.run(model.init)
+      summary_writer = tf.summary.FileWriter(train_full_path,
+                                              graph_def=session.graph_def,
+                                              flush_secs=10)
 
-    run_inference = make_run_inference(session, model)
-    get_q_values = make_get_q_values(session, model)
+      if resume:
+        print("Resuming: ", train_full_path)
+        saver.restore(session, tf.train.latest_checkpoint(train_full_path))
+      else:
+        print("Starting new training: ", train_full_path)
+        session.run(model.init)
 
-    experience_collector = ExperienceCollector()
-    batcher = ExperienceBatcher(experience_collector, run_inference,
-                                get_q_values, STATE_NORMALIZE_FACTOR)
+      run_inference = make_run_inference(session, model)
+      get_q_values = make_get_q_values(session, model)
 
-    test_experiences = experience_collector.collect(play.random_strategy, 100)
+      
+      batcher = ExperienceBatcher(experience_collector, run_inference,
+                                  get_q_values, STATE_NORMALIZE_FACTOR)
 
-    for state_batch, targets, actions in batcher.get_batches_stepwise():
+      test_experiences = experience_collector.collect(play.random_strategy, 100)
 
-      global_step, _ = session.run([model.global_step, model.train_op],
-          feed_dict={
-              model.state_batch_placeholder: state_batch,
-              model.targets_placeholder: targets,
-              model.actions_placeholder: actions,})
+      for state_batch, targets, actions in batcher.get_batches_stepwise(memory):
 
-      if global_step % 10000 == 0 and global_step != 0:
-        saver.save(session, train_dir + "/checkpoint", global_step=global_step)
-        loss = write_summaries(session, batcher, model, test_experiences,
-                               summary_writer)
-        print("Step:", global_step, "Loss:", loss)
+        global_step, _ = session.run([model.global_step, model.train_op],
+            feed_dict={
+                model.state_batch_placeholder: state_batch,
+                model.targets_placeholder: targets,
+                model.actions_placeholder: actions,})
+
+        if global_step % 10000 == 0 and global_step != 0:
+          saver.save(session, train_full_path + "/checkpoint", global_step=global_step)
+          loss = write_summaries(session, batcher, model, test_experiences,
+                                 summary_writer)
+          print("Step:", global_step, "Loss:", loss)
+
+        if global_step >= MAX_NUM_STEPS:
+          break
 
 
 def write_summaries(session, batcher, model, test_experiences, summary_writer):
